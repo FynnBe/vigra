@@ -1,7 +1,7 @@
 //-- -*- c++ -*-
 /************************************************************************/
 /*                                                                      */
-/*               Copyright 2003 by Christian-Dennis Rahn                */
+/*               Copyright 2016 by Christian-Dennis Rahn                */
 /*                        and Ullrich Koethe                            */
 /*                                                                      */
 /*    This file is part of the VIGRA computer vision library.           */
@@ -35,8 +35,8 @@
 /*                                                                      */
 /************************************************************************/
 
-#ifndef VIGRA_MULTI_CONVOLUTION_H
-#define VIGRA_MULTI_CONVOLUTION_H
+#ifndef VIGRA_MULTI_CONVOLUTION_AVX_H
+#define VIGRA_MULTI_CONVOLUTION_AVX_H
 
 #include "separableconvolution.hxx"
 #include "array_vector.hxx"
@@ -2894,4 +2894,4 @@ structureTensorMultiArray(MultiArrayView<N, T1, S1> const & source,
 } //-- namespace vigra
 
 
-#endif        //-- VIGRA_MULTI_CONVOLUTION_H
+#endif        //-- VIGRA_MULTI_CONVOLUTION_AVX_H
