@@ -872,7 +872,7 @@ separableConvolveMultiArray( SrcIterator s, SrcShape const & shape, SrcAccessor 
 {
 	if (AVX)
 	{
-		\\ ...
+		// ...
 	}
 	else
 	{
