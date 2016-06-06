@@ -59,12 +59,13 @@ ADD_LIBRARY(vigraimpex ${LIBTYPE}
     pnm.cxx
     rgbe.c
     sifImport.cxx
+    simdcheck.cxx
     sun.cxx
     tiff.cxx
     viff.cxx
     void_vector.cxx)
 
-set(SOVERSION 11)  # increment this after changing the vigraimpex library
+set(SOVERSION 12)  # increment this after changing the vigraimpex library
 IF(MACOSX)
     SET_TARGET_PROPERTIES(vigraimpex PROPERTIES VERSION ${SOVERSION}.${vigra_version}
                          SOVERSION ${SOVERSION} INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}")

@@ -60,6 +60,8 @@
 #include "vigra/multi_resize.hxx"
 #include "vigra/separableconvolution.hxx"
 #include "vigra/bordertreatment.hxx"
+#include "vigra/simdcheck.hxx"
+
 
 using namespace vigra;
 using namespace vigra::functor;
@@ -1297,17 +1299,48 @@ struct MultiArraySeparableConvolutionScaledTestSuite : public vigra::test_suite
 
 //--------------------------------------------------------
 
+struct SimdCheckTest
+{
+	void test_basic()
+	{
+
+		shouldEqual(99, detail::get_cpuid(99, NULL));
+	}
+
+	// - - - - - - - - - - - - - - - - - - - - - - - -
+
+};                //-- struct MultiArraySeparableConvolutionTest
+
+//--------------------------------------------------------
+
+struct SimdCheckTestSuite
+	: public vigra::test_suite
+{
+	SimdCheckTestSuite()
+		: vigra::test_suite("SimdCheckTestSuite")
+	{
+		add(testCase(&SimdCheckTest::test_basic));
+	}
+}; // struct SimdCheckTestSuite
+
+//--------------------------------------------------------
+
 int main(int argc, char ** argv)
 {
-    // run the multi-array separable convolution test suite
+	// run the multi-array separable convolution test suite
     MultiArraySeparableConvolutionTestSuite test1;
     int failed = test1.run(vigra::testsToBeExecuted(argc, argv));
     std::cout << test1.report() << std::endl;
 
-    // run the multi-array separable scaled-convolution test suite
-    MultiArraySeparableConvolutionScaledTestSuite test2;
-    failed += test2.run(vigra::testsToBeExecuted(argc, argv));
-    std::cout << test2.report() << std::endl;
+ //   // run the multi-array separable scaled-convolution test suite
+ //   MultiArraySeparableConvolutionScaledTestSuite test2;
+ //   failed += test2.run(vigra::testsToBeExecuted(argc, argv));
+ //   std::cout << test2.report() << std::endl;
+
+	// run simd check test suite
+	SimdCheckTestSuite test3;
+	failed += test3.run(vigra::testsToBeExecuted(argc, argv));
+	std::cout << test3.report() << std::endl;
 
     return (failed != 0);
 }
