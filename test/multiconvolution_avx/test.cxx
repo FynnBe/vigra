@@ -1304,7 +1304,8 @@ struct SimdCheckTest
 	void test_basic()
 	{
 
-		shouldEqual(99, detail::get_cpuid(99, NULL));
+		detail::cpuid_t id;
+		shouldEqual(1, detail::get_cpuid(1, &id));
 	}
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -

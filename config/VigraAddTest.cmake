@@ -118,7 +118,7 @@ FUNCTION(VIGRA_ADD_TEST target)
     ADD_TEST(${target} ${VIGRA_TEST_SCRIPT} ${VIGRA_CONFIGURATION})
 
     # if we configure for Visual Studio, setup the debug command
-    if(MSVC AND NOT (MSVC_VERSION VERSION_LESS "11"))
+    if(MSVC AND NOT (VIGRA_MSVC_VERSION VERSION_LESS "11"))
         # FIXME: this may not portable between VC versions (works for 11.0 - 14.0)
         set(VIGRA_TEST_EXE "${CMAKE_CURRENT_BINARY_DIR}/\$(Configuration)/${target}")
         set(VIGRA_TEST_ENVIRONMENT "PATH=${EXTRA_PATH}%PATH%")

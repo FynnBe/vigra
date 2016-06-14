@@ -38,9 +38,6 @@ ELSEIF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
     ENDIF()
 ENDIF ()
 
-
-
-
 ADD_LIBRARY(vigraimpex ${LIBTYPE}
     bmp.cxx
     byteorder.cxx
@@ -97,6 +94,27 @@ IF(ZLIB_FOUND)
   TARGET_LINK_LIBRARIES(vigraimpex ${ZLIB_LIBRARIES})
 ENDIF(ZLIB_FOUND)
 
+CHECK_FOR_AVX(AVX_FLAGS)
+target_compile_options(vigraimpex PRIVATE ${AVX_FLAGS})
+message("Using AVX_FLAGS: " ${AVX_FLAGS})
+
+CHECK_CPUID(HAVE_CPUID_H HAVE_CPUIDEX HAVE_ASM_CPUID)
+message("Using HAVE_CPUIDEX: " ${HAVE_CPUIDEX})
+if(HAVE_CPUID_H)
+    target_compile_definitions(vigraimpex PRIVATE HAVE_CPUID_H=${HAVE_CPUID_H})
+elseif(HAVE_CPUIDEX)
+    target_compile_definitions(vigraimpex PRIVATE HAVE_CPUIDEX=${HAVE_CPUIDEX})
+elseif(HAVE_ASM_CPUID)
+    target_compile_definitions(vigraimpex PRIVATE HAVE_ASM_CPUID=${HAVE_ASM_CPUID})
+endif()
+
+CHECK_XGETBV(HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
+message("HAVE_ASM_XGETBV, HAVE_INTRIN_XGETBV: ${HAVE_ASM_XGETBV} , ${HAVE_INTRIN_XGETBV}")
+if(HAVE_ASM_XGETBV)
+    target_compile_definitions(vigraimpex PRIVATE HAVE_ASM_XGETBV=${HAVE_ASM_XGETBV})
+elseif(HAVE_INTRIN_XGETBV)
+    target_compile_definitions(vigraimpex PRIVATE HAVE_INTRIN_XGETBV=${HAVE_INTRIN_XGETBV})
+endif()
 
 INSTALL(TARGETS vigraimpex
         EXPORT vigra-targets

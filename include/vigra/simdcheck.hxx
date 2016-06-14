@@ -39,8 +39,7 @@
 #define VIGRA_IMPEX_SIMDCHECK_HXX
 
 #include <iostream>
-#define HAVE_CPUIDEX
-#define HAVE_INTRIN_XGETBV
+//#define HAVE_INTRIN_XGETBV // todo define in cmake
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -70,48 +69,30 @@
 namespace vigra {
 
 namespace detail{
-    struct cpuid_t;
+	
+	struct cpuid_t {
+		unsigned int eax;
+		unsigned int ebx;
+		unsigned int ecx;
+		unsigned int edx;
+	};
 
     typedef unsigned long long xgetbv_t;
 
-    // todo: static
 	VIGRA_EXPORT inline int get_cpuid(unsigned int, cpuid_t*);
 
 
-    // #if defined(HAVE_ASM_XGETBV)
+    #if defined(HAVE_ASM_XGETBV)
 
-    // static inline xgetbv_t xgetbv()
-    // {
-        // unsigned int index = 0;
-        // unsigned int eax, edx;
+	VIGRA_EXPORT inline xgetbv_t xgetbv();
 
-        // // CPUID.(EAX=01H, ECX=0H):ECX.OSXSAVE[bit 27]==1
-        // cpuid_t cpuid;
-        // int res = get_cpuid(1, &cpuid);
+    #elif defined(HAVE_INTRIN_XGETBV)
 
-        // if (!res)
-            // return 0;
+	VIGRA_EXPORT inline xgetbv_t xgetbv();
 
-        // if ((cpuid.ecx & cpuid_bit_XSAVE) != cpuid_bit_XSAVE)
-            // return 0;
-        // if ((cpuid.ecx & cpuid_bit_OSXSAVE) != cpuid_bit_OSXSAVE)
-            // return 0;
-
-        // __asm__ __volatile__("xgetbv" : "=a"(eax), "=d"(edx) : "c"(index));
-
-        // return ((unsigned long long)edx << 32) | eax;
-    // }
-
-    // #elif defined(HAVE_INTRIN_XGETBV)
-
-    // static inline xgetbv_t xgetbv()
-    // {
-        // return _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
-    // }
-
-    // #else
-    // #error "No known way to use xgetbv."
-    // #endif
+    #else
+    #error "no known way to use xgetbv."
+    #endif
 
     // #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
 

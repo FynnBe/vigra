@@ -25,6 +25,7 @@ SET(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH}  ${vigra_SOURCE_DIR}/config)
 
 include(VigraSetDefaults)
 include(VigraCMakeUtils)
+include(VigraCPUFeatures)
 INCLUDE_DIRECTORIES(${vigra_SOURCE_DIR}/include)
 
 if(SUPPRESS_3RD_PARTY_WARNINGS)
@@ -84,7 +85,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
 ENDIF()
 
 if(MSVC)
-    string(REGEX MATCH "[0-9.]+" MSVC_VERSION ${CMAKE_GENERATOR})
+    string(REGEX MATCH "[0-9.]+" VIGRA_MSVC_VERSION ${CMAKE_GENERATOR})
 endif()
 
 if(MACOSX)

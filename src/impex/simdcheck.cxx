@@ -35,287 +35,246 @@
 
 // based on fastfilters github.com/svenpeter42/fastfilters
 
-//#include "fastfilters.h"
-// #include "config.h"
-// #include <iostream>
-// #define HAVE_CPUIDEX
-// #define HAVE_INTRIN_XGETBV
-
-// #include <stdbool.h>
-// #include <stdint.h>
-// #include <stddef.h>
-
-// #ifdef HAVE_CPUID_H
-// #include <cpuid.h>
-// #elif defined(HAVE_ASM_CPUID)
-// #include "clang_cpuid.h"
-// #endif
-
-// #ifdef HAVE_CPUIDEX
-// #include <intrin.h>
-// #endif
-
-// #define cpuid_bit_XSAVE 0x04000000
-// #define cpuid_bit_OSXSAVE 0x08000000
-// #define cpuid_bit_AVX 0x10000000
-// #define cpuid_bit_FMA 0x00001000
-// #define cpuid7_bit_AVX2 0x00000020
-
-// #define xcr0_bit_XMM 0x00000002
-// #define xcr0_bit_YMM 0x00000004
-
 #include <vigra/simdcheck.hxx>
 
 namespace vigra {
 
-	namespace detail {
+namespace detail {
 
-		struct cpuid_t {
-			unsigned int eax;
-			unsigned int ebx;
-			unsigned int ecx;
-			unsigned int edx;
-		};
+	inline int get_cpuid(unsigned int level , cpuid_t *id)
+	{
+		 #if defined(HAVE_CPUID_H) || defined(HAVE_ASM_CPUID)
 
+			 if ((unsigned int)__get_cpuid_max(0, NULL) < level)
+				 return 0;
 
-		// todo: static 
-		inline int get_cpuid(unsigned int level , cpuid_t *id)
-		{
-			return level;
-			// #if defined(HAVE_CPUID_H) || defined(HAVE_ASM_CPUID)
+			 __cpuid_count(level, 0, id->eax, id->ebx, id->ecx, id->edx);
+			 return 1;
 
-				// if ((unsigned int)__get_cpuid_max(0, NULL) < level)
-					// return 0;
+		 #elif defined(HAVE_CPUIDEX)
+			 int cpuid[4];
+			 __cpuidex(cpuid, level, 0);
 
-				// __cpuid_count(level, 0, id->eax, id->ebx, id->ecx, id->edx);
-				// return 1;
+			 id->eax = cpuid[0];
+			 id->ebx = cpuid[1];
+			 id->ecx = cpuid[2];
+			 id->edx = cpuid[3];
 
-			// #elif defined(HAVE_CPUIDEX)
-				// int cpuid[4];
-				// __cpuidex(cpuid, level, 0);
+			 return 1;
 
-				// id->eax = cpuid[0];
-				// id->ebx = cpuid[1];
-				// id->ecx = cpuid[2];
-				// id->edx = cpuid[3];
+		 #else
+		 #error "No known way to query for CPUID."
+		 #endif
+	}
 
-				// return 1;
+	#if defined(HAVE_ASM_XGETBV)
 
-			// #else
-			// #error "No known way to query for CPUID."
-			// #endif
-		}
+	inline xgetbv_t xgetbv()
+	{
+		unsigned int index = 0;
+		unsigned int eax, edx;
 
-		// #if defined(HAVE_ASM_XGETBV)
+		// CPUID.(EAX=01H, ECX=0H):ECX.OSXSAVE[bit 27]==1
+		cpuid_t cpuid;
+		int res = get_cpuid(1, &cpuid);
 
-		// static inline xgetbv_t xgetbv()
-		// {
-			// unsigned int index = 0;
-			// unsigned int eax, edx;
+		if (!res)
+			return 0;
 
-			// // CPUID.(EAX=01H, ECX=0H):ECX.OSXSAVE[bit 27]==1
-			// cpuid_t cpuid;
-			// int res = get_cpuid(1, &cpuid);
+		if ((cpuid.ecx & cpuid_bit_XSAVE) != cpuid_bit_XSAVE)
+			return 0;
+		if ((cpuid.ecx & cpuid_bit_OSXSAVE) != cpuid_bit_OSXSAVE)
+			return 0;
 
-			// if (!res)
-				// return 0;
+		__asm__ __volatile__("xgetbv" : "=a"(eax), "=d"(edx) : "c"(index));
 
-			// if ((cpuid.ecx & cpuid_bit_XSAVE) != cpuid_bit_XSAVE)
-				// return 0;
-			// if ((cpuid.ecx & cpuid_bit_OSXSAVE) != cpuid_bit_OSXSAVE)
-				// return 0;
+		return ((unsigned long long)edx << 32) | eax;
+	}
 
-			// __asm__ __volatile__("xgetbv" : "=a"(eax), "=d"(edx) : "c"(index));
+	#elif defined(HAVE_INTRIN_XGETBV)
 
-			// return ((unsigned long long)edx << 32) | eax;
-		// }
+	inline xgetbv_t xgetbv()
+	{
+		return _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+	}
 
-		// #elif defined(HAVE_INTRIN_XGETBV)
+	#endif
 
-		// static inline xgetbv_t xgetbv()
-		// {
-			// return _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
-		// }
+	// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
 
-		// #else
-		// #error "No known way to use xgetbv."
-		// #endif
-
-		// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
-
-		// static bool _supports_avx2()
-		// {
-			// if (__builtin_cpu_supports("avx2"))
-				// return true;
-			// else
-				// return false;
-		// }
-
-		// #else
-
-		// static bool _supports_avx2()
-		// {
-			// cpuid_t cpuid;
-
-			// // CPUID.(EAX=07H, ECX=0H):EBX.AVX2[bit 5]==1
-			// int res = get_cpuid(7, &cpuid);
-
-			// if (!res)
-				// return false;
-
-			// if ((cpuid.ebx & cpuid7_bit_AVX2) != cpuid7_bit_AVX2)
-				// return false;
-
-			// xgetbv_t xcr0;
-			// xcr0 = xgetbv();
-
-			// // check for OS support: XCR0[2] (AVX state) and XCR0[1] (SSE state)
-			// if ((xcr0 & xcr0_bit_XMM) != xcr0_bit_XMM)
-				// return false;
-			// if ((xcr0 & xcr0_bit_YMM) != xcr0_bit_YMM)
-				// return false;
-
+	// static bool _supports_avx2()
+	// {
+		// if (__builtin_cpu_supports("avx2"))
 			// return true;
-		// }
+		// else
+			// return false;
+	// }
 
-		// #endif
+	// #else
 
-		// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX)
+	// static bool _supports_avx2()
+	// {
+		// cpuid_t cpuid;
 
-		// static bool _supports_avx()
-		// {
-			// if (__builtin_cpu_supports("avx"))
-				// return true;
-			// else
-				// return false;
-		// }
+		// // CPUID.(EAX=07H, ECX=0H):EBX.AVX2[bit 5]==1
+		// int res = get_cpuid(7, &cpuid);
 
-		// #else
+		// if (!res)
+			// return false;
 
-		// static bool _supports_avx()
-		// {
-			// cpuid_t cpuid;
+		// if ((cpuid.ebx & cpuid7_bit_AVX2) != cpuid7_bit_AVX2)
+			// return false;
 
-			// // CPUID.(EAX=01H, ECX=0H):ECX.AVX[bit 28]==1
-			// int res = get_cpuid(1, &cpuid);
+		// xgetbv_t xcr0;
+		// xcr0 = xgetbv();
 
-			// if (!res)
-				// return false;
+		// // check for OS support: XCR0[2] (AVX state) and XCR0[1] (SSE state)
+		// if ((xcr0 & xcr0_bit_XMM) != xcr0_bit_XMM)
+			// return false;
+		// if ((xcr0 & xcr0_bit_YMM) != xcr0_bit_YMM)
+			// return false;
 
-			// if ((cpuid.ecx & cpuid_bit_AVX) != cpuid_bit_AVX)
-				// return false;
+		// return true;
+	// }
 
-			// xgetbv_t xcr0;
-			// xcr0 = xgetbv();
+	// #endif
 
-			// // check for OS support: XCR0[2] (AVX state) and XCR0[1] (SSE state)
-			// if (((xcr0 & 6) != 6))
-				// return false;
+	// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX)
+
+	// static bool _supports_avx()
+	// {
+		// if (__builtin_cpu_supports("avx"))
 			// return true;
-		// }
+		// else
+			// return false;
+	// }
 
-		// #endif
+	// #else
 
-		// #if defined(HAVE_GNU_CPU_SUPPORTS_FMA)
+	// static bool _supports_avx()
+	// {
+		// cpuid_t cpuid;
 
-		// static bool _supports_fma()
-		// {
-			// if (__builtin_cpu_supports("fma") && __builtin_cpu_supports("avx"))
-				// return true;
-			// else
-				// return false;
-		// }
+		// // CPUID.(EAX=01H, ECX=0H):ECX.AVX[bit 28]==1
+		// int res = get_cpuid(1, &cpuid);
 
-		// #else
+		// if (!res)
+			// return false;
 
-		// static bool _supports_fma()
-		// {
-			// cpuid_t cpuid;
+		// if ((cpuid.ecx & cpuid_bit_AVX) != cpuid_bit_AVX)
+			// return false;
 
-			// if (!_supports_avx())
-				// return false;
+		// xgetbv_t xcr0;
+		// xcr0 = xgetbv();
 
-			// // check for CPU FMA support: CPUID.(EAX=01H, ECX=0H):ECX.FMA[bit 12]==1
-			// int res = get_cpuid(1, &cpuid);
+		// // check for OS support: XCR0[2] (AVX state) and XCR0[1] (SSE state)
+		// if (((xcr0 & 6) != 6))
+			// return false;
+		// return true;
+	// }
 
-			// if (!res)
-				// return false;
+	// #endif
 
-			// if ((cpuid.ecx & cpuid_bit_FMA) != cpuid_bit_FMA)
-				// return false;
+	// #if defined(HAVE_GNU_CPU_SUPPORTS_FMA)
 
+	// static bool _supports_fma()
+	// {
+		// if (__builtin_cpu_supports("fma") && __builtin_cpu_supports("avx"))
 			// return true;
-		// }
+		// else
+			// return false;
+	// }
 
-		// #endif
+	// #else
 
-		// int main()
-		// {
-			// cpuid_t test_cpuid;
-			// get_cpuid(0, &test_cpuid);
+	// static bool _supports_fma()
+	// {
+		// cpuid_t cpuid;
 
-			// std::cout << "xgetbv(): " << xgetbv() << std::endl;
-			// std::cout << "get_cpuid.eax, .ebx, ecx, edx: " << test_cpuid.eax << ", " << test_cpuid.ebx << ", " << test_cpuid.ecx << ", " << test_cpuid.edx << std::endl;
-			// std::cout << "_supports_avx2(): " << _supports_avx2() << std::endl;
-			// std::cout << "_supports_avx(): " << _supports_avx() << std::endl;
-			// std::cout << "_supports_fma(): " << _supports_fma() << std::endl;
+		// if (!_supports_avx())
+			// return false;
 
-			// return 0;
-		// }
+		// // check for CPU FMA support: CPUID.(EAX=01H, ECX=0H):ECX.FMA[bit 12]==1
+		// int res = get_cpuid(1, &cpuid);
 
-		//static bool g_supports_avx = false;
-		//static bool g_supports_fma = false;
-		//static bool g_supports_avx2 = false;
-		//
-		//void fastfilters_cpu_init(void)
-		//{
-		//    g_supports_avx = _supports_avx();
-		//    g_supports_fma = _supports_fma();
-		//    g_supports_avx2 = _supports_avx2();
-		//}
-		//
-		////bool DLL_PUBLIC fastfilters_cpu_enable(fastfilters_cpu_feature_t feature, bool enable)
-		//bool fastfilters_cpu_enable(fastfilters_cpu_feature_t feature, bool enable)
-		//{
-		//    switch (feature) {
-		//    case FASTFILTERS_CPU_AVX:
-		//        if (enable)
-		//            g_supports_avx = _supports_avx();
-		//        else
-		//            g_supports_avx = false;
-		//        break;
-		//    case FASTFILTERS_CPU_FMA:
-		//        if (enable)
-		//            g_supports_fma = _supports_fma();
-		//        else
-		//            g_supports_fma = false;
-		//        break;
-		//    case FASTFILTERS_CPU_AVX2:
-		//        if (enable)
-		//            g_supports_avx2 = _supports_avx2();
-		//        else
-		//            g_supports_avx2 = false;
-		//        break;
-		//    default:
-		//        return false;
-		//    }
-		//
-		//    return fastfilters_cpu_check(feature);
-		//}
-		//
-		//bool DLL_PUBLIC fastfilters_cpu_check(fastfilters_cpu_feature_t feature)
-		////bool fastfilters_cpu_check(fastfilters_cpu_feature_t feature)
-		//{
-		//    switch (feature) {
-		//    case FASTFILTERS_CPU_AVX:
-		//        return g_supports_avx;
-		//    case FASTFILTERS_CPU_FMA:
-		//        return g_supports_fma;
-		//    case FASTFILTERS_CPU_AVX2:
-		//        return g_supports_avx2;
-		//    default:
-		//        return false;
-		//    }
-		//}
+		// if (!res)
+			// return false;
+
+		// if ((cpuid.ecx & cpuid_bit_FMA) != cpuid_bit_FMA)
+			// return false;
+
+		// return true;
+	// }
+
+	// #endif
+
+	// int main()
+	// {
+		// cpuid_t test_cpuid;
+		// get_cpuid(0, &test_cpuid);
+
+		// std::cout << "xgetbv(): " << xgetbv() << std::endl;
+		// std::cout << "get_cpuid.eax, .ebx, ecx, edx: " << test_cpuid.eax << ", " << test_cpuid.ebx << ", " << test_cpuid.ecx << ", " << test_cpuid.edx << std::endl;
+		// std::cout << "_supports_avx2(): " << _supports_avx2() << std::endl;
+		// std::cout << "_supports_avx(): " << _supports_avx() << std::endl;
+		// std::cout << "_supports_fma(): " << _supports_fma() << std::endl;
+
+		// return 0;
+	// }
+
+	//static bool g_supports_avx = false;
+	//static bool g_supports_fma = false;
+	//static bool g_supports_avx2 = false;
+	//
+	//void fastfilters_cpu_init(void)
+	//{
+	//    g_supports_avx = _supports_avx();
+	//    g_supports_fma = _supports_fma();
+	//    g_supports_avx2 = _supports_avx2();
+	//}
+	//
+	////bool DLL_PUBLIC fastfilters_cpu_enable(fastfilters_cpu_feature_t feature, bool enable)
+	//bool fastfilters_cpu_enable(fastfilters_cpu_feature_t feature, bool enable)
+	//{
+	//    switch (feature) {
+	//    case FASTFILTERS_CPU_AVX:
+	//        if (enable)
+	//            g_supports_avx = _supports_avx();
+	//        else
+	//            g_supports_avx = false;
+	//        break;
+	//    case FASTFILTERS_CPU_FMA:
+	//        if (enable)
+	//            g_supports_fma = _supports_fma();
+	//        else
+	//            g_supports_fma = false;
+	//        break;
+	//    case FASTFILTERS_CPU_AVX2:
+	//        if (enable)
+	//            g_supports_avx2 = _supports_avx2();
+	//        else
+	//            g_supports_avx2 = false;
+	//        break;
+	//    default:
+	//        return false;
+	//    }
+	//
+	//    return fastfilters_cpu_check(feature);
+	//}
+	//
+	//bool DLL_PUBLIC fastfilters_cpu_check(fastfilters_cpu_feature_t feature)
+	////bool fastfilters_cpu_check(fastfilters_cpu_feature_t feature)
+	//{
+	//    switch (feature) {
+	//    case FASTFILTERS_CPU_AVX:
+	//        return g_supports_avx;
+	//    case FASTFILTERS_CPU_FMA:
+	//        return g_supports_fma;
+	//    case FASTFILTERS_CPU_AVX2:
+	//        return g_supports_avx2;
+	//    default:
+	//        return false;
+	//    }
+	//}
 
 }} // namespace vigra::detail 
