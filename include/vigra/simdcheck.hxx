@@ -81,18 +81,7 @@ namespace detail{
 
 	VIGRA_EXPORT inline int get_cpuid(unsigned int, cpuid_t*);
 
-
-    #if defined(HAVE_ASM_XGETBV)
-
 	VIGRA_EXPORT inline xgetbv_t xgetbv();
-
-    #elif defined(HAVE_INTRIN_XGETBV)
-
-	VIGRA_EXPORT inline xgetbv_t xgetbv();
-
-    #else
-    #error "no known way to use xgetbv."
-    #endif
 
     // #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
 

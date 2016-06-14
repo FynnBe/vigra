@@ -98,6 +98,8 @@ namespace detail {
 		return _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
 	}
 
+	#else
+	#error "no known way to use xgetbv."
 	#endif
 
 	// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)

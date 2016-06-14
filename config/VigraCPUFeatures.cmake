@@ -118,7 +118,7 @@ endmacro()
 
 macro(CHECK_XGETBV HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
     include(CheckCXXSourceRuns)
-    include(CheckCXXSourceCompiles)
+    #include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS)
 
     message(STATUS "Checking if the compiler supports the \"xgetbv\" instruction")
@@ -133,7 +133,8 @@ macro(CHECK_XGETBV HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
             return a;
         }"
         ${HAVE_ASM_XGETBV})
-
+        # todo: ask Sven why "return a" is in this code
+        #       or why ..._compiles isnt sufficient
     if(${HAVE_ASM_XGETBV})
         message(STATUS "          - Compiler supports the 'xgetbv' instruction")
     endif()
@@ -148,14 +149,13 @@ macro(CHECK_XGETBV HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
             return 0;
         }"
         ${HAVE_INTRIN_XGETBV})
-    # todo: ask Sven why "return xcr0" was in this code
-    #       or why ..._compiles isnt sufficient
+        # todo: ask Sven why "return xcr0" was in this code
+        #       or why ..._compiles isnt sufficient
 
     message(${HAVE_INTRIN_XGETBV}: ${${HAVE_INTRIN_XGETBV}})
     if(${HAVE_INTRIN_XGETBV})
         message(STATUS "          - Compiler supports the '_xgetbv' intrinsic")
     endif()
-
 
     if(NOT ${HAVE_ASM_XGETBV} AND NOT ${HAVE_INTRIN_XGETBV})
         message(FATAL_ERROR "No known compiler intrinsic to read xcr0.")
