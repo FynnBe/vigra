@@ -89,4 +89,5 @@ namespace detail{
 
 	VIGRA_EXPORT bool _supports_fma();
 	
-}} // VIGRA_IMPEX_SIMDCHECK_HXX
+}} // namespace vigra::detail
+#endif // VIGRA_IMPEX_SIMDCHECK_HXX
