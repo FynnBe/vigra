@@ -8,6 +8,25 @@ macro(CHECK_FOR_AVX AVX_FLAGS_NAME)
     include(CheckCXXSourceRuns)
     set(CMAKE_REQUIRED_FLAGS)
 
+    check_cxx_source_runs( "
+        #include <immintrin.h>
+        #include <stdlib.h>
+        #include <stdio.h>
+        int main()
+        {
+            __m256 a = _mm256_set1_ps(rand());
+            __m256 b = _mm256_set1_ps(rand());
+            b = _mm256_fmadd_ps(a, a, b);
+            float result = _mm_cvtss_f32(_mm256_extractf128_ps(b, 0));
+            printf(\"%f\", result);
+            return 0;
+        }"
+        HAVE_FMA_EXTENSIONS)
+
+    if(NOT HAVE_FMA_EXTENSIONS)
+        message( FATAL_ERROR "Compiler does not have fma instructions!")
+    endif()
+
     # Check AVX
     if(MSVC AND NOT MSVC_VERSION LESS 1600)
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
@@ -67,6 +86,7 @@ macro(CHECK_FOR_AVX AVX_FLAGS_NAME)
         endif()
     endif()
 endmacro()
+
 
 macro(CHECK_CPUID HAVE_CPUID_H_NAME HAVE_CPUIDEX_NAME HAVE_ASM_CPUID_NAME)
     include(CheckCXXSourceRuns)

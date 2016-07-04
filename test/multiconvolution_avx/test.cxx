@@ -1303,14 +1303,24 @@ struct SimdCheckTest
 {
 	void test_basic()
 	{
-
 		detail::cpuid_t id;
 		shouldEqual(1, detail::get_cpuid(1, &id));
 	}
 
+	void test_avx()
+	{
+		shouldEqual(true, detail::_supports_avx2());
+		shouldEqual(true, detail::_supports_avx());
+	}
+
+	void test_fma()
+	{
+		shouldEqual(true, detail::_supports_avx());
+	}
+
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 
-};                //-- struct MultiArraySeparableConvolutionTest
+}; //-- struct MultiArraySeparableConvolutionTest
 
 //--------------------------------------------------------
 
@@ -1321,6 +1331,8 @@ struct SimdCheckTestSuite
 		: vigra::test_suite("SimdCheckTestSuite")
 	{
 		add(testCase(&SimdCheckTest::test_basic));
+		add(testCase(&SimdCheckTest::test_avx));
+		add(testCase(&SimdCheckTest::test_fma));
 	}
 }; // struct SimdCheckTestSuite
 
@@ -1333,10 +1345,10 @@ int main(int argc, char ** argv)
     int failed = test1.run(vigra::testsToBeExecuted(argc, argv));
     std::cout << test1.report() << std::endl;
 
- //   // run the multi-array separable scaled-convolution test suite
- //   MultiArraySeparableConvolutionScaledTestSuite test2;
- //   failed += test2.run(vigra::testsToBeExecuted(argc, argv));
- //   std::cout << test2.report() << std::endl;
+    //// run the multi-array separable scaled-convolution test suite
+    //MultiArraySeparableConvolutionScaledTestSuite test2;
+    //failed += test2.run(vigra::testsToBeExecuted(argc, argv));
+    //std::cout << test2.report() << std::endl;
 
 	// run simd check test suite
 	SimdCheckTestSuite test3;
