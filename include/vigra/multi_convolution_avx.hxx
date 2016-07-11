@@ -684,9 +684,6 @@ scaleKernel(K & kernel, double a)
 } // namespace detail
 
 
-/** \addtogroup ConvolutionFilters
-*/
-//@{
 
 /********************************************************/
 /*                                                      */
@@ -873,6 +870,23 @@ separableConvolveMultiArray( SrcIterator s, SrcShape const & shape, SrcAccessor 
 {
 	if (AVX)
 	{
+		//typedef struct _fastfilters_array2d_t {
+		//	float *ptr;
+		//	size_t n_x;
+		//	size_t n_y;
+		//	size_t stride_x;
+		//	size_t stride_y;
+		//	size_t n_channels;
+		//} fastfilters_array2d_t;
+
+		
+		separableConvolveMultiArray(s, shape, src,
+			d, dest,
+			kernels,
+			start,
+			stop,
+			false);
+
 		// ...
 	}
 	else

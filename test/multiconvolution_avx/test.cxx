@@ -62,6 +62,18 @@
 #include "vigra/bordertreatment.hxx"
 #include "vigra/simdcheck.hxx"
 
+#include <cstdio>
+#include "vigra/convolution.hxx"
+#include "vigra/unittest.hxx"
+#include "vigra/stdimage.hxx"
+#include "vigra/multi_array.hxx"
+#include "vigra/impex.hxx"
+#include "vigra/combineimages.hxx"
+#include "vigra/resampling_convolution.hxx"
+#include "vigra/imagecontainer.hxx"
+#include "vigra/tv_filter.hxx"
+//#include "tv_test_data.hxx"
+
 
 using namespace vigra;
 using namespace vigra::functor;
@@ -148,6 +160,40 @@ struct MultiArraySeparableConvolutionTest
     }
     
     // - - - - - - - - - - - - - - - - - - - - - - - -
+
+	void test_GaussianExample(const Image3D &src, float ksize)
+	{
+		//int width = 100;
+		//int height = 200;
+		//int depth = 3;
+
+		//Shape3 shape(width, height, depth);
+		//MultiArray<3, unsigned char> source(shape);
+		//MultiArray<3, float>         dest(shape);
+
+		//Kernel1D<float> gauss;
+		//float sigma = 0.5;
+		//gauss.initGaussian(sigma);
+		//
+		//// smooth all dimensions with the same kernel
+		//separableConvolveMultiArray(source, dest, gauss);
+		//
+		//// create 3 Gauss kernels, one for each dimension, but smooth the z-axis less
+		//ArrayVector<Kernel1D<float> > kernels(3, gauss);
+		//kernels[2].initGaussian(sigma / 2.0);
+		//
+		//// perform Gaussian smoothing on all dimensions
+		//separableConvolveMultiArray(source, dest, kernels.begin());
+		//
+		//// create output array for a ROI
+		//MultiArray<3, float> destROI(shape - Shape3(10, 10, 10));
+
+		//// only smooth the given ROI (ignore 5 pixels on all sides of the array)
+		//separableConvolveMultiArray(source, destROI, gauss, Shape3(5, 5, 5), Shape3(-5, -5, -5));
+
+		//shouldEqual(1, 2);
+	}
+
 
     void test_1DValidity( const Image3D &src, float ksize )
     {
@@ -546,6 +592,10 @@ struct MultiArraySeparableConvolutionTest
         makeBox( srcImage );
     }
 
+	void test_avxSimple()
+	{
+		test_GaussianExample(srcImage, kernelSize);
+	}
 
     void test_Valid1() 
     {
@@ -588,6 +638,7 @@ struct MultiArraySeparableConvolutionTestSuite
     MultiArraySeparableConvolutionTestSuite()
         : vigra::test_suite("MultiArraySeparableConvolutionTestSuite")
         {
+				add( testCase( &MultiArraySeparableConvolutionTest::test_avxSimple ));
                 add( testCase( &MultiArraySeparableConvolutionTest::test_Valid1 ) );
                 add( testCase( &MultiArraySeparableConvolutionTest::test_Valid2 ) );
                 add( testCase( &MultiArraySeparableConvolutionTest::test_Valid3 ) );
@@ -1309,7 +1360,7 @@ struct SimdCheckTest
 
 	void test_avx()
 	{
-		shouldEqual(true, detail::_supports_avx2());
+		shouldEqual(true, detail::_supports_avx2()); // todo: like in cmake!
 		shouldEqual(true, detail::_supports_avx());
 	}
 
@@ -1320,7 +1371,7 @@ struct SimdCheckTest
 
 	// - - - - - - - - - - - - - - - - - - - - - - - -
 
-}; //-- struct MultiArraySeparableConvolutionTest
+}; //-- struct SimdCheckTest
 
 //--------------------------------------------------------
 
@@ -1336,7 +1387,9 @@ struct SimdCheckTestSuite
 	}
 }; // struct SimdCheckTestSuite
 
-//--------------------------------------------------------
+   //--------------------------------------------------------
+
+
 
 int main(int argc, char ** argv)
 {
@@ -1355,5 +1408,10 @@ int main(int argc, char ** argv)
 	failed += test3.run(vigra::testsToBeExecuted(argc, argv));
 	std::cout << test3.report() << std::endl;
 
+	//AVXConvolutionTestSuite test4;
+	//failed += test4.run(vigra::testsToBeExecuted(argc, argv));
+	//std::cout << test4.report() << std::endl;
+
     return (failed != 0);
 }
+
