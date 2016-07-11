@@ -39,7 +39,6 @@
 #define VIGRA_IMPEX_SIMDCHECK_HXX
 
 #include <iostream>
-//#define HAVE_INTRIN_XGETBV // todo define in cmake
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -69,7 +68,7 @@
 namespace vigra {
 
 namespace detail{
-	
+
 	struct cpuid_t {
 		unsigned int eax;
 		unsigned int ebx;
@@ -83,11 +82,13 @@ namespace detail{
 
 	VIGRA_EXPORT inline xgetbv_t xgetbv();
 
-	VIGRA_EXPORT bool _supports_avx2();
-
-	VIGRA_EXPORT bool _supports_avx();
+	VIGRA_EXPORT bool _compiles_fma();
+	VIGRA_EXPORT bool _compiles_avx();
+	VIGRA_EXPORT bool _compiles_avx2();
 
 	VIGRA_EXPORT bool _supports_fma();
+	VIGRA_EXPORT bool _supports_avx();
+	VIGRA_EXPORT bool _supports_avx2();
 	
 }} // namespace vigra::detail
 #endif // VIGRA_IMPEX_SIMDCHECK_HXX

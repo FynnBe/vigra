@@ -866,61 +866,44 @@ separableConvolveMultiArray( SrcIterator s, SrcShape const & shape, SrcAccessor 
                              KernelIterator kernels,
                              SrcShape start = SrcShape(),
                              SrcShape stop = SrcShape(),
-							 bool AVX = false)
+                             bool AVX = false)
 {
-	if (AVX)
-	{
-		//typedef struct _fastfilters_array2d_t {
-		//	float *ptr;
-		//	size_t n_x;
-		//	size_t n_y;
-		//	size_t stride_x;
-		//	size_t stride_y;
-		//	size_t n_channels;
-		//} fastfilters_array2d_t;
-
-		
-		separableConvolveMultiArray(s, shape, src,
-			d, dest,
-			kernels,
-			start,
-			stop,
-			false);
-
-		// ...
-	}
-	else
-	{
-		typedef typename NumericTraits<typename DestAccessor::value_type>::RealPromote TmpType;
+    if (AVX)
+    {
+        separableConvolveMultiArrayFastFilters(s, shape, src, d, dest, kernels, start, stop);
+    }
+    else
+    {
+        typedef typename NumericTraits<typename DestAccessor::value_type>::RealPromote TmpType;
 
 
-		if (stop != SrcShape())
-		{
+        if (stop != SrcShape())
+        {
 
-			enum { N = 1 + SrcIterator::level };
-			detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, start);
-			detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, stop);
+            enum { N = 1 + SrcIterator::level };
+            detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, start);
+            detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, stop);
 
-			for (int k = 0; k < N; ++k)
-				vigra_precondition(0 <= start[k] && start[k] < stop[k] && stop[k] <= shape[k],
-					"separableConvolveMultiArray(): invalid subarray shape.");
+            for (int k = 0; k < N; ++k)
+                vigra_precondition(0 <= start[k] && start[k] < stop[k] && stop[k] <= shape[k],
+                    "separableConvolveMultiArray(): invalid subarray shape.");
 
-			detail::internalSeparableConvolveSubarray(s, shape, src, d, dest, kernels, start, stop);
-		}
-		else if (!IsSameType<TmpType, typename DestAccessor::value_type>::boolResult)
-		{
-			// need a temporary array to avoid rounding errors
-			MultiArray<SrcShape::static_size, TmpType> tmpArray(shape);
-			detail::internalSeparableConvolveMultiArrayTmp(s, shape, src,
-				tmpArray.traverser_begin(), typename AccessorTraits<TmpType>::default_accessor(), kernels);
-			copyMultiArray(srcMultiArrayRange(tmpArray), destIter(d, dest));
-		}
-		else
-		{
-			// work directly on the destination array
-			detail::internalSeparableConvolveMultiArrayTmp(s, shape, src, d, dest, kernels);
-		}
-	}
+            detail::internalSeparableConvolveSubarray(s, shape, src, d, dest, kernels, start, stop);
+        }
+        else if (!IsSameType<TmpType, typename DestAccessor::value_type>::boolResult)
+        {
+            // need a temporary array to avoid rounding errors
+            MultiArray<SrcShape::static_size, TmpType> tmpArray(shape);
+            detail::internalSeparableConvolveMultiArrayTmp(s, shape, src,
+                tmpArray.traverser_begin(), typename AccessorTraits<TmpType>::default_accessor(), kernels);
+            copyMultiArray(srcMultiArrayRange(tmpArray), destIter(d, dest));
+        }
+        else
+        {
+            // work directly on the destination array
+            detail::internalSeparableConvolveMultiArrayTmp(s, shape, src, d, dest, kernels);
+        }
+    }
 }
 
 template <class SrcIterator, class SrcShape, class SrcAccessor,

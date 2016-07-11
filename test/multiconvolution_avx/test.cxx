@@ -74,6 +74,7 @@
 #include "vigra/tv_filter.hxx"
 //#include "tv_test_data.hxx"
 
+#include "fastfilters.hxx"
 
 using namespace vigra;
 using namespace vigra::functor;
@@ -1356,21 +1357,24 @@ struct SimdCheckTest
 	{
 		detail::cpuid_t id;
 		shouldEqual(1, detail::get_cpuid(1, &id));
+		should(id.eax);
+		should(id.ebx);
+		should(id.ecx);
+		should(id.edx);
 	}
-
-	void test_avx()
+	
+	void test_simd()
 	{
-		shouldEqual(true, detail::_supports_avx2()); // todo: like in cmake!
-		shouldEqual(true, detail::_supports_avx());
+		shouldEqual(detail::_compiles_fma(), detail::_supports_fma());
+		shouldEqual(detail::_compiles_avx(), detail::_supports_avx());
+		shouldEqual(detail::_compiles_avx2(), detail::_supports_avx2());
 	}
 
-	void test_fma()
+	void test_xgetbv()
 	{
-		shouldEqual(true, detail::_supports_avx());
+		should(detail::xgetbv());
 	}
-
-	// - - - - - - - - - - - - - - - - - - - - - - - -
-
+	
 }; //-- struct SimdCheckTest
 
 //--------------------------------------------------------
@@ -1381,14 +1385,38 @@ struct SimdCheckTestSuite
 	SimdCheckTestSuite()
 		: vigra::test_suite("SimdCheckTestSuite")
 	{
-		add(testCase(&SimdCheckTest::test_basic));
-		add(testCase(&SimdCheckTest::test_avx));
-		add(testCase(&SimdCheckTest::test_fma));
+		add(testCase(&SimdCheckTest::test_basic)); 
+		add(testCase(&SimdCheckTest::test_simd));
+		add(testCase(&SimdCheckTest::test_xgetbv));
 	}
 }; // struct SimdCheckTestSuite
 
    //--------------------------------------------------------
 
+
+struct AVXConvolutionTest
+{
+	void test_basic()
+	{
+		dummy dummy_0;
+		//todo shouldEqual(8, separableConvolveMultiArray<>());
+	}
+
+}; //-- struct AVXConvolutionTest
+
+   //--------------------------------------------------------
+
+struct AVXConvolutionTestSuite
+	: public vigra::test_suite
+{
+	AVXConvolutionTestSuite()
+		: vigra::test_suite("AVXConvolutionTestSuite")
+	{
+		add(testCase(&AVXConvolutionTest::test_basic));
+	}
+}; // struct AVXConvolutionTestSuite
+
+   //--------------------------------------------------------
 
 
 int main(int argc, char ** argv)
@@ -1408,9 +1436,9 @@ int main(int argc, char ** argv)
 	failed += test3.run(vigra::testsToBeExecuted(argc, argv));
 	std::cout << test3.report() << std::endl;
 
-	//AVXConvolutionTestSuite test4;
-	//failed += test4.run(vigra::testsToBeExecuted(argc, argv));
-	//std::cout << test4.report() << std::endl;
+	AVXConvolutionTestSuite test4;
+	failed += test4.run(vigra::testsToBeExecuted(argc, argv));
+	std::cout << test4.report() << std::endl;
 
     return (failed != 0);
 }

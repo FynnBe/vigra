@@ -4,12 +4,12 @@
 #
 ##################################################
 
-macro(CHECK_FOR_AVX AVX_FLAGS_NAME HAVE_FMA HAVE_AVX_NAME HAVE_AVX2_NAME)
-    include(CheckCXXSourceRuns)
+macro(CHECK_FOR_AVX)
+    include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS)
 
     # Check FMA
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <immintrin.h>
         #include <stdlib.h>
         #include <stdio.h>
@@ -24,15 +24,12 @@ macro(CHECK_FOR_AVX AVX_FLAGS_NAME HAVE_FMA HAVE_AVX_NAME HAVE_AVX2_NAME)
         }"
        HAVE_FMA)
 
-    message("FMA in marco = ${HAVE_FMA}")
-    message("FMA in macro = ${${HAVE_FMA}}")
-
     # Check AVX
     if(MSVC AND NOT MSVC_VERSION LESS 1600)
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
     endif()
 
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <immintrin.h>
         int main()
         {
@@ -50,14 +47,14 @@ macro(CHECK_FOR_AVX AVX_FLAGS_NAME HAVE_FMA HAVE_AVX_NAME HAVE_AVX2_NAME)
           }
           return 0;
         }"
-        ${HAVE_AVX_NAME})
+        HAVE_AVX)
 
     # Check AVX2
     if(MSVC AND NOT MSVC_VERSION LESS 1800)
         set(CMAKE_REQUIRED_FLAGS "/arch:AVX2")
     endif()
 
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <immintrin.h>
         int main()
         {
@@ -75,27 +72,38 @@ macro(CHECK_FOR_AVX AVX_FLAGS_NAME HAVE_FMA HAVE_AVX_NAME HAVE_AVX2_NAME)
           }
           return 0;
         }"
-        ${HAVE_AVX2_NAME})
+        HAVE_AVX2)
+
+    # Set Defines
+    if(HAVE_FMA)
+        target_compile_definitions(vigraimpex PRIVATE HAVE_FMA)
+    endif()
+    if(HAVE_AVX)
+        target_compile_definitions(vigraimpex PRIVATE HAVE_AVX)
+    endif()
+    if(HAVE_AVX2)
+        target_compile_definitions(vigraimpex PRIVATE HAVE_AVX2)
+    endif()
 
     # Set Flags
-    message( STATUS "HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEERE: " ${HAVE_AVX_NAME})
-    message( STATUS "HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEERE TOO: " ${HAVE_AVX2_NAME})
     if(MSVC)
-        if(${HAVE_AVX2_NAME} AND NOT MSVC_VERSION LESS 1800)
-            set(${AVX_FLAGS_NAME} "/arch:AVX2")
-        elseif(${HAVE_AVX_NAME}  AND NOT MSVC_VERSION LESS 1600)
-            set(${AVX_FLAGS_NAME} "/arch:AVX")
+        if(HAVE_AVX2 AND NOT MSVC_VERSION LESS 1800)
+            set(AVX_FLAGS "/arch:AVX2")
+        elseif(HAVE_AVX  AND NOT MSVC_VERSION LESS 1600)
+            set(AVX_FLAGS "/arch:AVX")
         endif()
     endif()
+
+    message(STATUS "Determined AVX_FLAGS: ${AVX_FLAGS}")
+    target_compile_options(vigraimpex PRIVATE ${AVX_FLAGS})
 endmacro()
 
 
-macro(CHECK_CPUID HAVE_CPUID_H_NAME HAVE_CPUIDEX_NAME HAVE_ASM_CPUID_NAME)
-    include(CheckCXXSourceRuns)
+macro(CHECK_CPUID)
+    include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS)
 
-    # message(STATUS "Checking if the compiler supports the \"__get_cpuid\" intrinsic")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <cpuid.h>
         int main(int argc, char *argv[]) {
             (void)argc; (void)argv;
@@ -103,23 +111,21 @@ macro(CHECK_CPUID HAVE_CPUID_H_NAME HAVE_CPUIDEX_NAME HAVE_ASM_CPUID_NAME)
             __get_cpuid(0, &tmp, &tmp, &tmp, &tmp);
             return 0;
         }"
-        ${HAVE_CPUID_H_NAME})
+        HAVE_CPUID_H)
 
-    # message(STATUS "Checking if the compiler supports the \"__cpuidex\" intrinsic")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <stdio.h>
         #include <intrin.h>
         int main()
         {
             int cpuid[4];
             __cpuidex(cpuid, 7, 0);
-            return 0; //# todo: talk about the behavior of CheckCXXSourceRuns/CheckCXXSourceCompiles
+            return 0; //# todo: talk about the behavior of CheckCXXSourceCompiles/CheckCXXSourceCompiles
             return cpuid[0];
         }"
-        ${HAVE_CPUIDEX_NAME})
+        HAVE_CPUIDEX)
 
-    # message(STATUS "Checking if the compiler supports the 'cpuid' instruction")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <stdio.h>
         int main()
         {
@@ -128,25 +134,37 @@ macro(CHECK_CPUID HAVE_CPUID_H_NAME HAVE_CPUIDEX_NAME HAVE_ASM_CPUID_NAME)
             a = 1;
             c = 0;
             __asm__ __volatile__ (\"cpuid\" : \"+a\"(a), \"+b\"(b), \"+c\"(c), \"=d\"(d));
-            return 0; //# todo: talk about the behavior of CheckCXXSourceRuns/CheckCXXSourceCompiles
+            return 0; //# todo: talk about the behavior of CheckCXXSourceCompiles/CheckCXXSourceCompiles
             return a;
         }"
-        ${HAVE_ASM_CPUID_NAME})
+        HAVE_ASM_CPUID)
 
-    if(NOT ${HAVE_CPUID_H_NAME} AND
-       NOT ${HAVE_CPUIDEX_NAME} AND
-       NOT ${HAVE_ASM_CPUID_NAME})
+    if(NOT HAVE_CPUID_H AND
+       NOT HAVE_CPUIDEX AND
+       NOT HAVE_ASM_CPUID)
         message(FATAL_ERROR "No known compiler intrinsic to read cpuid.")
     endif()
+
+    # Set Defines
+    set(CPUID_DEFINES)
+    if(HAVE_CPUID_H)
+        set(CPUID_DEFINES "${CPUID_DEFINES} HAVE_CPUID_H")
+    endif()
+    if(HAVE_CPUIDEX)
+        set(CPUID_DEFINES "${CPUID_DEFINES} HAVE_CPUIDEX")
+    endif()
+    if(HAVE_ASM_CPUID)
+    set(CPUID_DEFINES "${CPUID_DEFINES} HAVE_ASM_CPUID")
+    endif()
+    message(STATUS "Determined CPUID_DEFINES: " ${CPUID_DEFINES})
+    target_compile_definitions(vigraimpex PRIVATE ${CPUID_DEFINES})
 endmacro()
 
-macro(CHECK_XGETBV HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
-    include(CheckCXXSourceRuns)
-    #include(CheckCXXSourceCompiles)
+macro(CHECK_XGETBV)
+    include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS)
 
-    # message(STATUS "Checking if the compiler supports the \"xgetbv\" instruction")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <stdio.h>
         int main()
         {
@@ -154,34 +172,42 @@ macro(CHECK_XGETBV HAVE_ASM_XGETBV HAVE_INTRIN_XGETBV)
 
             c = 0;
             __asm__ __volatile__(\"xgetbv\" : \"=a\"(a), \"=d\"(b) : \"c\"(c));
-            return 0; //# todo: talk about the behavior of CheckCXXSourceRuns/CheckCXXSourceCompiles
+            return 0; //# todo: talk about the behavior of CheckCXXSourceCompiles/CheckCXXSourceCompiles
             return a;
         }"
-        ${HAVE_ASM_XGETBV})
+        HAVE_ASM_XGETBV)
 
-    # if(${HAVE_ASM_XGETBV})
-        # message(STATUS "- Compiler supports the 'xgetbv' instruction")
-    # endif()
-
-    # message(STATUS "Checking if the compiler supports the '_xgetbv' intrinsic")
-    check_cxx_source_runs("
+    check_cxx_source_compiles("
         #include <stdio.h>
         #include <intrin.h>
         int main()
         {
             unsigned int xcr0 = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
-            return 0; //# todo: talk about the behavior of CheckCXXSourceRuns/CheckCXXSourceCompiles
+            return 0; //# todo: talk about the behavior of CheckCXXSourceCompiles/CheckCXXSourceCompiles
             return xcr0;
         }"
-        ${HAVE_INTRIN_XGETBV})
-        # todo: ask Sven why "return xcr0" was in this code
+        HAVE_INTRIN_XGETBV)
 
-    # message(${HAVE_INTRIN_XGETBV}: ${${HAVE_INTRIN_XGETBV}})
-    # if(${HAVE_INTRIN_XGETBV})
-        # message(STATUS "- Compiler supports the '_xgetbv' intrinsic")
-    # endif()
-
-    if(NOT ${HAVE_ASM_XGETBV} AND NOT ${HAVE_INTRIN_XGETBV})
+    if(NOT HAVE_ASM_XGETBV AND NOT HAVE_INTRIN_XGETBV)
         message(FATAL_ERROR "No known compiler intrinsic to read xcr0.")
     endif()
+
+    # Set Defines
+    if(HAVE_ASM_XGETBV)
+        target_compile_definitions(vigraimpex PRIVATE HAVE_ASM_XGETBV)
+    endif()
+    if(HAVE_INTRIN_XGETBV)
+        target_compile_definitions(vigraimpex PRIVATE HAVE_INTRIN_XGETBV)
+    endif()
+
+    # Set Defines
+    set(XGETBV_DEFINES)
+    if(HAVE_ASM_XGETBV)
+        set(XGETBV_DEFINES "${XGETBV_DEFINES} HAVE_ASM_XGETBV")
+    endif()
+    if(HAVE_INTRIN_XGETBV)
+        set(XGETBV_DEFINES "${XGETBV_DEFINES} HAVE_INTRIN_XGETBV")
+    endif()
+    message(STATUS "Determined XGETBV_DEFINES: " ${XGETBV_DEFINES})
+    target_compile_definitions(vigraimpex PRIVATE ${XGETBV_DEFINES})
 endmacro()

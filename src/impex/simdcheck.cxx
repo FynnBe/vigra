@@ -37,9 +37,46 @@
 
 #include <vigra/simdcheck.hxx>
 
+
 namespace vigra {
 
 namespace detail {
+
+#if defined(HAVE_FMA)
+	bool _compiles_fma()
+	{
+		return true;
+	}
+#else
+	bool _compiles_fma()
+	{
+		return false;
+	}
+#endif
+
+#if defined(HAVE_AVX)
+	bool _compiles_avx()
+	{
+		return true;
+	}
+#else
+	bool _compiles_avx()
+	{
+		return false;
+	}
+#endif
+
+#if defined(HAVE_AVX2)
+	bool _compiles_avx2()
+	{
+		return true;
+	}
+#else
+	bool _compiles_avx2()
+	{
+		return false;
+	}
+#endif
 
 	inline int get_cpuid(unsigned int level , cpuid_t *id)
 	{
@@ -102,17 +139,17 @@ namespace detail {
 	#error "no known way to use xgetbv."
 	#endif
 
-	// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
+	#if defined(HAVE_GNU_CPU_SUPPORTS_AVX2)
 
-	// static bool _supports_avx2()
-	// {
-		// if (__builtin_cpu_supports("avx2"))
-			// return true;
-		// else
-			// return false;
-	// }
+	bool _supports_avx2()
+	{
+		if (__builtin_cpu_supports("avx2"))
+			return true;
+		else
+			return false;
+	}
 
-	// #else
+	#else
 
 	bool _supports_avx2()
 	{
@@ -139,19 +176,19 @@ namespace detail {
 		return true;
 	}
 
-	// #endif
+	 #endif
 
-	// #if defined(HAVE_GNU_CPU_SUPPORTS_AVX)
+	 #if defined(HAVE_GNU_CPU_SUPPORTS_AVX)
 
-	// static bool _supports_avx()
-	// {
-		// if (__builtin_cpu_supports("avx"))
-			// return true;
-		// else
-			// return false;
-	// }
+	 bool _supports_avx()
+	 {
+		 if (__builtin_cpu_supports("avx"))
+			 return true;
+		 else
+			 return false;
+	 }
 
-	// #else
+	 #else
 
 	bool _supports_avx()
 	{
@@ -175,19 +212,19 @@ namespace detail {
 		return true;
 	}
 
-	// #endif
+	 #endif
 
-	// #if defined(HAVE_GNU_CPU_SUPPORTS_FMA)
+	 #if defined(HAVE_GNU_CPU_SUPPORTS_FMA)
 
-	// static bool _supports_fma()
-	// {
-		// if (__builtin_cpu_supports("fma") && __builtin_cpu_supports("avx"))
-			// return true;
-		// else
-			// return false;
-	// }
+	bool _supports_fma()
+	{
+		if (__builtin_cpu_supports("fma") && __builtin_cpu_supports("avx"))
+			return true;
+		else
+			return false;
+	}
 
-	// #else
+	#else
 
 	bool _supports_fma()
 	{
@@ -208,6 +245,6 @@ namespace detail {
 		return true;
 	}
 
-	// #endif
+	 #endif
 
 }} // namespace vigra::detail
