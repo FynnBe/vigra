@@ -1393,14 +1393,199 @@ struct SimdCheckTestSuite
 
    //--------------------------------------------------------
 
+vigra::MultiArray<2, double> getSymmetricLine(bool transposed = false) {
+    vigra::MultiArray<2, double> src(40, 1);
+
+    if (transposed)
+        src.transpose();
+    
+    for (int i = 0; i < 20; ++i)
+    {
+        src[i] = i + .25;
+        src[39 - i] = i + .25;
+    }
+    return src;
+}
+
+vigra::MultiArray<2, double> getSymmetricImage() {
+    vigra::MultiArray<2, double> src(10, 6);
+
+    int i = 0;
+    for (int y = 0; y < 6; y++) {
+        int x = 0;
+        for (; x < 5; i++, x++) {
+            src[x, y] = i + 0.25;
+        }
+        i--;
+        for (; x < 10; i--, x++) {
+            src[x, y] = i + 0.25;
+        }
+        (y % 2 == 0) ? i += 3 : i += 2;
+    }
+    return src;
+}
+
+vigra::MultiArray<2, double> getUnsymmetricImage() {
+    vigra::MultiArray<2, double> src(10, 6);
+
+    int i = 0;
+    for (int y = 0; y < 6; y++) {
+        for (int x = 0; x < 10; i++, x++) {
+            src[x, y] = i + 0.25;
+        }
+        (y % 2 == 0) ? i++ : i += 2;
+    }
+    return src;
+}
 
 struct AVXConvolutionTest
 {
-	void test_basic()
+    typedef vigra::MultiArray<2, double> Image;
+    typedef vigra::MultiArrayView<2, double> View;
+    typedef vigra::DRGBImage RGBImage;
+
+    Image constimg, lenna, rampimg, sym_image, unsym_image;
+    vigra::Kernel2D<double> sym_kernel, unsym_kernel, line_kernel;
+
+    AVXConvolutionTest()
+        : constimg(5, 5),
+        rampimg(5, 1),
+        sym_image(getSymmetricImage()),
+        unsym_image(getUnsymmetricImage())
+    {
+        constimg.init(1.0);
+
+        vigra::Kernel1D<double> binom1;
+        binom1.initBinomial(1);
+        sym_kernel.initSeparable(binom1, binom1);
+
+        unsym_kernel.initExplicitly(Diff2D(-1, -1), Diff2D(1, 1)) = 1, 2, 4,
+            5, 11, 3,
+            6, 8, 7;
+        unsym_kernel.normalize(1);
+
+        line_kernel.initExplicitly(Diff2D(-2, 0), Diff2D(2, 0)) = 1, 4, 12, 4, 1;
+        line_kernel.normalize(1);
+
+
+        importImage("lenna128.xv", lenna);
+
+        for (int i = 0; i < 5; ++i)
+        {
+            rampimg[i] = i;
+        }
+    }
+
+	
+    void test_basic()
 	{
-		dummy dummy_0;
-		//todo shouldEqual(8, separableConvolveMultiArray<>());
+        //vigra::DImage im = vigra::getUn
+        //shouldEqual(8, separableConvolveMultiArray<>());
 	}
+
+
+    void test_separableConvolution()
+    {
+        vigra::Kernel1D<double> binom;
+        binom.initBinomial(2);
+
+        vigra::Kernel1D<double>::Iterator center = binom.center();
+
+        should(center[0] == 0.375);
+        should(center[-1] == 0.25);
+        should(center[1] == 0.25);
+        should(center[-2] == 0.0625);
+        should(center[2] == 0.0625);
+
+        binom.initBinomial(1);
+
+        center = binom.center();
+
+        should(center[0] == 0.5);
+        should(center[-1] == 0.25);
+        should(center[1] == 0.25);
+
+        Image tmp1(constimg);
+        Image tmp2(constimg);
+        tmp2 = 0.0;
+
+        MultiArray<2, unsigned char> testimg();
+
+        // smooth all dimensions with the same kernel
+
+        //Image::Iterator s();
+        //ImageIterator <double> s(constimg.begin, w);
+
+        separableConvolveMultiArray(
+            constimg,//MultiArrayView<N, T1, S1> const & source,
+            tmp1,//MultiArrayView<N, T2, S2> dest,
+            kernel1d(binom));//KernelIterator kit,
+            //typename MultiArrayShape<N>::type start = typename MultiArrayShape<N>::type(),
+            //typename MultiArrayShape<N>::type stop = typename MultiArrayShape<N>::type(),
+            //bool AVX = false
+
+ 
+        //// create 3 Gauss kernels, one for each dimension, but smooth the z-axis less
+        //ArrayVector<Kernel1D<float> > kernels(3, gauss);
+        //kernels[2].initGaussian(sigma / 2.0);
+        //// perform Gaussian smoothing on all dimensions
+        //separableConvolveMultiArray(source, dest, kernels.begin());
+        
+        //// create output array for a ROI
+        //MultiArray<3, float> destROI(shape - Shape3(10, 10, 10));
+        //// only smooth the given ROI (ignore 5 pixels on all sides of the array)
+        //separableConvolveMultiArray(source, destROI, gauss, Shape3(5, 5, 5), Shape3(-5, -5, -5));
+
+
+
+        //separableConvolveX(srcImageRange(constimg), destImage(tmp1), kernel1d(binom));
+        separableConvolveY(srcImageRange(tmp1), destImage(tmp2), kernel1d(binom));
+
+        //Image::ScanOrderIterator i1 = constimg.begin();
+        //Image::ScanOrderIterator i1end = constimg.end();
+        //Image::ScanOrderIterator i2 = tmp2.begin();
+        //Image::Accessor acc = constimg.accessor();
+
+        for (int x = 0; x < constimg.shape()[0]; ++x)
+        {
+            for (int y = 0; y < constimg.shape()[1]; ++y)
+            {
+                should(constimg[x, y], constimg[x, y]);
+            }
+        } 
+    }
+    
+    
+    void test_stdConvolutionWithAvoid()
+    {
+        Image dest(sym_image);
+        dest.init(42.1);
+
+        convolveImage(srcImageRange(sym_image), destImage(dest), kernel2d(sym_kernel, BORDER_TREATMENT_AVOID));
+
+        // todo:
+        //separableConvolveMultiArray(SrcIterator s, SrcShape const & shape, SrcAccessor src,
+        //    DestIterator d, DestAccessor dest,
+        //    kernel2d(sym_kernel, BORDER_TREATMENT_AVOID))
+
+        Image::Iterator i_dest_2D = dest.upperLeft();
+        Image::ScanOrderIterator i_dest = dest.begin();
+        Image::ScanOrderIterator i_dest_end = dest.end();
+        Image::Accessor acc = dest.accessor();
+
+        //Kontrollierung der Randbehandlung und ein paar Pixel
+        //aus der Mitte.
+        should(acc(i_dest_2D + Diff2D(1, 1)) == 3);
+        should(acc(i_dest_2D + Diff2D(8, 2)) == 4.5);
+        for (int y = 0; i_dest != i_dest_end; y++) {
+            for (int x = 0; x < dest.size().x; x++, ++i_dest) {
+                if (x == 0 || y == 0 || x == 9 || y == 9) {
+                    shouldEqual(acc(i_dest), 42.1);
+                }
+            }
+        }
+
+    }
 
 }; //-- struct AVXConvolutionTest
 
@@ -1413,6 +1598,8 @@ struct AVXConvolutionTestSuite
 		: vigra::test_suite("AVXConvolutionTestSuite")
 	{
 		add(testCase(&AVXConvolutionTest::test_basic));
+        add(testCase(&AVXConvolutionTest::test_separableConvolution));
+        add(testCase(&AVXConvolutionTest::test_stdConvolutionWithAvoid));
 	}
 }; // struct AVXConvolutionTestSuite
 

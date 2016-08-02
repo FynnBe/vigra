@@ -861,48 +861,40 @@ doxygen_overloaded_function(template <...> void separableConvolveMultiArray)
 template <class SrcIterator, class SrcShape, class SrcAccessor,
           class DestIterator, class DestAccessor, class KernelIterator>
 void
-separableConvolveMultiArray( SrcIterator s, SrcShape const & shape, SrcAccessor src,
-                             DestIterator d, DestAccessor dest,
-                             KernelIterator kernels,
-                             SrcShape start = SrcShape(),
-                             SrcShape stop = SrcShape(),
-                             bool AVX = false)
+separableConvolveMultiArray(SrcIterator s, SrcShape const & shape, SrcAccessor src,
+    DestIterator d, DestAccessor dest,
+    KernelIterator kernels,
+    SrcShape start = SrcShape(),
+    SrcShape stop = SrcShape())
 {
-    if (AVX)
+typedef typename NumericTraits<typename DestAccessor::value_type>::RealPromote TmpType;
+
+
+    if (stop != SrcShape())
     {
-        separableConvolveMultiArrayFastFilters(s, shape, src, d, dest, kernels, start, stop);
+
+        enum { N = 1 + SrcIterator::level };
+        detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, start);
+        detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, stop);
+
+        for (int k = 0; k < N; ++k)
+            vigra_precondition(0 <= start[k] && start[k] < stop[k] && stop[k] <= shape[k],
+                "separableConvolveMultiArray(): invalid subarray shape.");
+
+        detail::internalSeparableConvolveSubarray(s, shape, src, d, dest, kernels, start, stop);
+    }
+    else if (!IsSameType<TmpType, typename DestAccessor::value_type>::boolResult)
+    {
+        // need a temporary array to avoid rounding errors
+        MultiArray<SrcShape::static_size, TmpType> tmpArray(shape);
+        detail::internalSeparableConvolveMultiArrayTmp(s, shape, src,
+            tmpArray.traverser_begin(), typename AccessorTraits<TmpType>::default_accessor(), kernels);
+        copyMultiArray(srcMultiArrayRange(tmpArray), destIter(d, dest));
     }
     else
     {
-        typedef typename NumericTraits<typename DestAccessor::value_type>::RealPromote TmpType;
-
-
-        if (stop != SrcShape())
-        {
-
-            enum { N = 1 + SrcIterator::level };
-            detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, start);
-            detail::RelativeToAbsoluteCoordinate<N - 1>::exec(shape, stop);
-
-            for (int k = 0; k < N; ++k)
-                vigra_precondition(0 <= start[k] && start[k] < stop[k] && stop[k] <= shape[k],
-                    "separableConvolveMultiArray(): invalid subarray shape.");
-
-            detail::internalSeparableConvolveSubarray(s, shape, src, d, dest, kernels, start, stop);
-        }
-        else if (!IsSameType<TmpType, typename DestAccessor::value_type>::boolResult)
-        {
-            // need a temporary array to avoid rounding errors
-            MultiArray<SrcShape::static_size, TmpType> tmpArray(shape);
-            detail::internalSeparableConvolveMultiArrayTmp(s, shape, src,
-                tmpArray.traverser_begin(), typename AccessorTraits<TmpType>::default_accessor(), kernels);
-            copyMultiArray(srcMultiArrayRange(tmpArray), destIter(d, dest));
-        }
-        else
-        {
-            // work directly on the destination array
-            detail::internalSeparableConvolveMultiArrayTmp(s, shape, src, d, dest, kernels);
-        }
+        // work directly on the destination array
+        detail::internalSeparableConvolveMultiArrayTmp(s, shape, src, d, dest, kernels);
     }
 }
 
@@ -956,22 +948,31 @@ separableConvolveMultiArray(MultiArrayView<N, T1, S1> const & source,
                             MultiArrayView<N, T2, S2> dest,
                             KernelIterator kit,
                             typename MultiArrayShape<N>::type start = typename MultiArrayShape<N>::type(),
-                            typename MultiArrayShape<N>::type stop = typename MultiArrayShape<N>::type())
+                            typename MultiArrayShape<N>::type stop = typename MultiArrayShape<N>::type(),
+                            bool AVX = false)
 {
-    if(stop != typename MultiArrayShape<N>::type())
+    if (AVX)
     {
-        detail::RelativeToAbsoluteCoordinate<N-1>::exec(source.shape(), start);
-        detail::RelativeToAbsoluteCoordinate<N-1>::exec(source.shape(), stop);
-        vigra_precondition(dest.shape() == (stop - start),
-            "separableConvolveMultiArray(): shape mismatch between ROI and output.");
+        separableConvolveMultiArrayFastFilters(s, shape, src, d, dest, kernels, start, stop);
     }
     else
     {
-        vigra_precondition(source.shape() == dest.shape(),
-            "separableConvolveMultiArray(): shape mismatch between input and output.");
+    
+        if(stop != typename MultiArrayShape<N>::type())
+        {
+            detail::RelativeToAbsoluteCoordinate<N-1>::exec(source.shape(), start);
+            detail::RelativeToAbsoluteCoordinate<N-1>::exec(source.shape(), stop);
+            vigra_precondition(dest.shape() == (stop - start),
+                "separableConvolveMultiArray(): shape mismatch between ROI and output.");
+        }
+        else
+        {
+            vigra_precondition(source.shape() == dest.shape(),
+                "separableConvolveMultiArray(): shape mismatch between input and output.");
+        }
+        separableConvolveMultiArray( srcMultiArrayRange(source),
+                                     destMultiArray(dest), kit, start, stop );
     }
-    separableConvolveMultiArray( srcMultiArrayRange(source),
-                                 destMultiArray(dest), kit, start, stop );
 }
 
 template <unsigned int N, class T1, class S1,
